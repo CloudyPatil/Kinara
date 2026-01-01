@@ -1,16 +1,19 @@
 import axios from 'axios';
 
-// 1. Create the instance
+// 1. Determine the Base URL dynamically
+// If the environment variable exists (on Vercel), use it.
+// Otherwise, fall back to localhost (for your computer).
+const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
+// 2. Create the instance
 const api = axios.create({
-    baseURL: 'http://127.0.0.1:8000/api/v1', // Points to FastAPI
+    baseURL: `${BASE_URL}/api/v1`, // We append /api/v1 here automatically
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// 2. Add the "Interceptor"
-// Before every request, check if we have a token in LocalStorage.
-// If yes, attach it to the header.
+// 3. Add the "Interceptor"
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('token');
     if (token) {
