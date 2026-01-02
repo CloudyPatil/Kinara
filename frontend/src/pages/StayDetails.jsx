@@ -17,6 +17,9 @@ export default function StayDetails() {
   const [guests, setGuests] = useState(1);
   const [bookingLoading, setBookingLoading] = useState(false);
 
+  // Get Today's date in YYYY-MM-DD format to prevent past bookings
+  const today = new Date().toISOString().split('T')[0];
+
   useEffect(() => {
     const fetchStay = async () => {
       try {
@@ -44,7 +47,13 @@ export default function StayDetails() {
 
   const handleBook = async (e) => {
     e.preventDefault();
-    if (!user) return navigate('/login');
+    
+    // FIX: Check LocalStorage directly in case 'user' state is lagging
+    const token = localStorage.getItem('token'); // or whatever key you use for the token
+    if (!user && !token) {
+        // If we really don't have a user or a token, send to login
+        return navigate('/login');
+    }
     
     setBookingLoading(true);
     try {
@@ -57,7 +66,14 @@ export default function StayDetails() {
       alert("Request Sent! 🎉");
       navigate('/dashboard/user');
     } catch (err) {
-      alert(err.response?.data?.detail || "Booking Failed");
+      console.error(err);
+      // Handle 401 specifically if token expired
+      if (err.response?.status === 401) {
+          alert("Session expired. Please login again.");
+          navigate('/login');
+      } else {
+          alert(err.response?.data?.detail || "Booking Failed");
+      }
     } finally {
       setBookingLoading(false);
     }
@@ -77,7 +93,7 @@ export default function StayDetails() {
         <button onClick={() => setShowAllPhotos(false)} className="fixed top-5 right-5 text-white bg-white/20 p-2 rounded-full"><X/></button>
         <div className="flex flex-col gap-4 max-w-4xl mx-auto mt-10">
             {stay.images?.map((img, i) => (
-                <img key={i} src={img} className="w-full rounded-lg" />
+                <img key={i} src={img} className="w-full rounded-lg" alt={`stay-${i}`} />
             ))}
         </div>
       </div>
@@ -108,11 +124,11 @@ export default function StayDetails() {
 
       {/* IMAGES */}
       <div className="relative rounded-3xl overflow-hidden grid grid-cols-1 md:grid-cols-4 gap-2 h-[300px] md:h-[450px] mb-8">
-        <div className="md:col-span-2 h-full"><img src={stay.image_url} className="w-full h-full object-cover cursor-pointer hover:opacity-90" onClick={() => setShowAllPhotos(true)}/></div>
+        <div className="md:col-span-2 h-full"><img src={stay.image_url} className="w-full h-full object-cover cursor-pointer hover:opacity-90" onClick={() => setShowAllPhotos(true)} alt="main"/></div>
         <div className="hidden md:grid md:col-span-2 grid-cols-2 gap-2 h-full">
-            {stay.images?.slice(0,4).map((img, i) => <img key={i} src={img} className="w-full h-full object-cover cursor-pointer hover:opacity-90" onClick={() => setShowAllPhotos(true)}/>)}
+            {stay.images?.slice(0,4).map((img, i) => <img key={i} src={img} className="w-full h-full object-cover cursor-pointer hover:opacity-90" onClick={() => setShowAllPhotos(true)} alt={`grid-${i}`}/>)}
         </div>
-        <button onClick={() => setShowAllPhotos(true)} className="absolute bottom-4 right-4 bg-black px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:scale-105 transition">Show all photos</button>
+        <button onClick={() => setShowAllPhotos(true)} className="absolute bottom-4 right-4 bg-black text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:scale-105 transition">Show all photos</button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -154,17 +170,40 @@ export default function StayDetails() {
                     <div className="grid grid-cols-2 gap-2">
                         <div className="border border-petrol-200 rounded-xl p-3">
                             <label className="block text-xs font-bold uppercase text-petrol-500 mb-1">Check-In</label>
-                            <input type="date" required className="w-full text-sm outline-none bg-transparent" onChange={(e) => setDates({...dates, checkIn: e.target.value})}/>
+                            {/* FIX: added min={today} */}
+                            <input 
+                                type="date" 
+                                required 
+                                min={today} 
+                                className="w-full text-sm outline-none bg-transparent dark:text-white" 
+                                onChange={(e) => setDates({...dates, checkIn: e.target.value})}
+                            />
                         </div>
                         <div className="border border-petrol-200 rounded-xl p-3">
                             <label className="block text-xs font-bold uppercase text-petrol-500 mb-1">Check-Out</label>
-                            <input type="date" required className="w-full text-sm outline-none bg-transparent" onChange={(e) => setDates({...dates, checkOut: e.target.value})}/>
+                            {/* FIX: added min based on checkIn or today */}
+                            <input 
+                                type="date" 
+                                required 
+                                min={dates.checkIn || today} 
+                                className="w-full text-sm outline-none bg-transparent dark:text-white" 
+                                onChange={(e) => setDates({...dates, checkOut: e.target.value})}
+                            />
                         </div>
                     </div>
                     <div className="border border-petrol-200 rounded-xl p-3">
                         <label className="block text-xs font-bold uppercase text-petrol-500 mb-1">Guests</label>
-                        <select className="w-full text-sm outline-none bg-transparent" value={guests} onChange={(e) => setGuests(e.target.value)}>
-                            {[1,2,3,4,5,6].map(num => <option key={num} value={num}>{num} Guests</option>)}
+                        <select 
+                            className="w-full text-sm outline-none bg-transparent dark:text-white cursor-pointer" 
+                            value={guests} 
+                            onChange={(e) => setGuests(e.target.value)}
+                        >
+                            {/* FIX: Added text-black to options to force visibility */}
+                            {[1,2,3,4,5,6].map(num => (
+                                <option key={num} value={num} className="text-black">
+                                    {num} Guests
+                                </option>
+                            ))}
                         </select>
                     </div>
                     <button type="submit" disabled={bookingLoading} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition disabled:opacity-50">
